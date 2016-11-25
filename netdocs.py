@@ -68,7 +68,7 @@ class NetDocs():
         
     def get_refresh_token(self, authcode):
         self.authcode = authcode
-        print(authcode)
+        
         # Encode URL parameters
         params = urllib.parse.urlencode({
             'grant_type' : 'authorization_code',
@@ -79,13 +79,12 @@ class NetDocs():
         params = "&".join([params, redirect_url])
         
         string_to_encode = ":".join([self.client_id, self.client_secret])
-        print(type(string_to_encode))
         
         b64string = base64.b64encode(bytes(string_to_encode, 'utf-8'))
-        #b64string = ":".join([self.client_id, self.client_secret]).encode('ascii')
-        print(b64string.decode('utf-8'))
+        
+        
         url = self.refresh_url
-        # Error comes as it's adding a b'' to the authorization header as a string?
+        
         headers = {
             "Authorization" : "Basic {0}".format(b64string.decode('utf-8')),
             "Accept" : "application/json",
@@ -94,8 +93,6 @@ class NetDocs():
             "Content-Length": "29"
             }
         
-        
-        print(url, headers, params)
         r = requests.post(url, headers=headers, data=params)
         
         #print r.text

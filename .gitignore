@@ -15,6 +15,7 @@ $RECYCLE.BIN/
 *.ini
 *.crt
 *.key
+*.ipynb
 
 # Windows Installer files
 *.cab
