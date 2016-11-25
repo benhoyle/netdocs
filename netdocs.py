@@ -68,7 +68,7 @@ class NetDocs():
         
     def get_refresh_token(self, authcode):
         self.authcode = authcode
-        
+        print(authcode)
         # Encode URL parameters
         params = urllib.parse.urlencode({
             'grant_type' : 'authorization_code',
@@ -77,37 +77,48 @@ class NetDocs():
         #...apart from redirect_uri (server doesn't like this encoded)
         redirect_url = "=".join(['redirect_uri', self.redirect_uri])
         params = "&".join([params, redirect_url])
-    
-        b64string = base64.b64encode(":".join([self.client_id, self.client_secret]))
         
+        string_to_encode = ":".join([self.client_id, self.client_secret])
+        print(type(string_to_encode))
+        
+        b64string = base64.b64encode(bytes(string_to_encode, 'utf-8'))
+        #b64string = ":".join([self.client_id, self.client_secret]).encode('ascii')
+        print(b64string.decode('utf-8'))
         url = self.refresh_url
+        # Error comes as it's adding a b'' to the authorization header as a string?
         headers = {
-            "Authorization" : "Basic %s" % b64string,
+            "Authorization" : "Basic {0}".format(b64string.decode('utf-8')),
             "Accept" : "application/json",
             "Accept-Encoding": "utf-8",
             "Content-Type":"application/x-www-form-urlencoded;charset=UTF-8",
             "Content-Length": "29"
             }
         
+        
+        print(url, headers, params)
         r = requests.post(url, headers=headers, data=params)
         
         #print r.text
-        try:
-            params_dict = r.json()
-            self.access_token = params_dict['access_token']
-            self.refresh_token = params_dict['refresh_token']
+        #try:
+        params_dict = r.json()
+        access_token = params_dict.get('access_token', None)
+        refresh_token = params_dict.get('refresh_token', None)
+        if access_token and refresh_token:
+            self.access_token = access_token
+            self.refresh_token = refresh_token
             
             # Store retrieved tokens in persistent storage
-            config = ConfigParser.SafeConfigParser()
+            config = configparser.SafeConfigParser()
             config.read(FILENAME)
             config.set('Client Parameters', 'ACCESS_TOKEN', self.access_token)
             config.set('Client Parameters', 'REFRESH_TOKEN', self.refresh_token)
             # Write config to file 
-            with open(FILENAME, 'wb') as configfile:
+            with open(FILENAME, 'w') as configfile:
                 config.write(configfile)
             return "Success > tokens stored"
-        except:
-            return str(r.status_code)
+        else:
+            return str(r.status_code) + r.text
+            
     
     def get_new_access_token(self):
          # Encode URL parameters
