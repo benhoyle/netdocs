@@ -18,6 +18,11 @@ def check_list(listvar):
     if not isinstance(listvar, list):
         listvar = [listvar]
     return listvar
+    
+def filter_name(name, whitelist, blacklist):
+    """ If a string name contains one or more words from whitelist but
+    no words from blacklist return true else return false. """
+    return any(word.lower() in name.lower() for word in whitelist) and not any(word.lower() in name.lower() for word in blacklist)
 
 class NetDocs():
     
@@ -213,6 +218,16 @@ class NetDocs():
     def get_folder_info(self, folderid):
         object_type =  "/v1/Folder/{id}/info".format(id=folderid)
         response = self.make_query(object_type)
+        return response
+        
+    def folder_content(folderid, attributes=True):
+    """Function to get folder content given an ID."""
+        object_type= "/v1/Folder/{id}".format(id=folderid)
+        if attributes:
+            params = urllib.parse.urlencode({'$select': 'standardAttributes'})
+        else:
+            params = ""
+        response = nd.make_query(object_type, params)
         return response
         
     def get_uploads(self, userstring, withindays=None):
