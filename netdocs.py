@@ -78,22 +78,9 @@ class NetDocs():
         redirect_url = "=".join(['redirect_uri', self.redirect_uri])
         params = "&".join([params, redirect_url])
         
-        string_to_encode = ":".join([self.client_id, self.client_secret])
-        
-        b64string = base64.b64encode(bytes(string_to_encode, 'utf-8'))
-        
-        
         url = self.refresh_url
         
-        headers = {
-            "Authorization" : "Basic {0}".format(b64string.decode('utf-8')),
-            "Accept" : "application/json",
-            "Accept-Encoding": "utf-8",
-            "Content-Type":"application/x-www-form-urlencoded;charset=UTF-8",
-            "Content-Length": "29"
-            }
-        
-        r = requests.post(url, headers=headers, data=params)
+        r = requests.post(url, headers=self.get_auth_headers(), data=params)
         
         #print r.text
         #try:
@@ -116,6 +103,18 @@ class NetDocs():
         else:
             return str(r.status_code) + r.text
             
+    def get_auth_headers(self):
+        """ Generate headers needed for authorisation requests. """
+        string_to_encode = ":".join([self.client_id, self.client_secret])
+        b64string = base64.b64encode(bytes(string_to_encode, 'utf-8'))
+        headers = {
+            "Authorization" : "Basic {0}".format(b64string.decode('utf-8')),
+            "Accept" : "application/json",
+            "Accept-Encoding": "utf-8",
+            "Content-Type":"application/x-www-form-urlencoded;charset=UTF-8",
+            "Content-Length": "29"
+            }
+        return headers
     
     def get_new_access_token(self):
          # Encode URL parameters
@@ -124,29 +123,20 @@ class NetDocs():
             'refresh_token' : self.refresh_token
             })
         
-        b64string = base64.b64encode(":".join([self.client_id, self.client_secret]))
-        
         url = self.refresh_url
-        headers = {
-            "Authorization" : "Basic %s" % b64string,
-            "Accept" : "application/json",
-            "Accept-Encoding": "utf-8",
-            "Content-Type":"application/x-www-form-urlencoded;charset=UTF-8",
-            "Content-Length": "29"
-            }
         
-        r = requests.post(url, headers=headers, data=params)
+        r = requests.post(url, headers=self.get_auth_headers(), data=params)
         
         try:
             params_dict = r.json()
             self.access_token = params_dict['access_token']
             
             # Store retrieved access token in persistent storage
-            config = ConfigParser.SafeConfigParser()
+            config = configparser.SafeConfigParser()
             config.read(FILENAME)
             config.set('Client Parameters', 'ACCESS_TOKEN', self.access_token)
             # Write config to file 
-            with open(FILENAME, 'wb') as configfile:
+            with open(FILENAME, 'w') as configfile:
                 config.write(configfile)
             return "Success > token stored"
         except:
