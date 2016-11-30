@@ -1,0 +1,14 @@
+[Client Parameters]
+c_id = [Paste your client id here]
+c_secret = [Paste your client secret here]
+scope = read [select from 'read', 'edit', 'organize', 'lookup', 'delete_doc', 'delete_container', 'full']
+access_token = [Leave blank - will be retrieved]
+refresh_token = [Leave blank - will be retrieved]
+
+[URLs]
+auth_url = https://vault.netvoyage.com/neWeb2/OAuth.aspx
+redirect_uri = https://localhost:3000/gettoken [Register this in your App configuration - you can use a different uri if required]
+refresh_url = https://api.vault.netvoyage.com/v1/OAuth
+base_url = https://api.vault.netvoyage.com
+
+
