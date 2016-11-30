@@ -19,6 +19,7 @@ setup(
     url='https://github.com/benhoyle/netdocs',
     license=license,
     packages=find_packages(exclude=('tests', 'docs')),
+    download_url = 'https://github.com/benhoyle/netdocs/tarball/0.1',
     keywords = ['netdocuments', 'wrapper', 'api'],
     install_requires['requests', 'flask']
 )
