@@ -28,6 +28,7 @@ class NetDocs():
         self.access_token = ""
         self.refresh_token = ""
         self.scope = ""
+        self.configure_urls()
 
     def configure_urls(
             self,
@@ -45,10 +46,10 @@ class NetDocs():
     def auth_headers(self):
         """ Get headers for authentication. """
         b64string = base64.b64encode(
-            ":".join([self.client_id, self.client_secret])
+            ":".join([self.client_id, self.client_secret]).encode()
             )
         return {
-            "Authorization": "Basic {0}".format(b64string),
+            "Authorization": "Basic {0}".format(b64string.decode()),
             "Accept": "application/json",
             "Accept-Encoding": "utf-8",
             "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
@@ -82,7 +83,7 @@ class NetDocs():
         # redirect_url = "=".join(['redirect_uri', self.redirect_uri])
         # params = "&".join([params, redirect_url])
 
-        r = requests.post(self.refresh_url, headers=self.headers(), data=params)
+        r = requests.post(self.refresh_url, headers=self.auth_headers(), data=params)
 
         if r.status_code == 200:
             params_dict = r.json()
@@ -90,7 +91,7 @@ class NetDocs():
             self.refresh_token = params_dict.get('refresh_token')
             return self.refresh_token
         else:
-            print(r)
+            print(r.status_code, r.text)
             raise NDRefreshTokenError
 
     def get_new_access_token(self):
@@ -148,7 +149,7 @@ class NetDocs():
                 self.get_new_access_token()
                 return self.make_query(url_portion, params, method, retry=True)
         else:
-            return " - ".join([r.status_code, r.text])
+            print(r.status_code)
 
     def get_user_data(self):
         object_type = "/v1/User/info"
@@ -357,6 +358,6 @@ class NetDocs():
                         moreresults = False
                 else:
                     moreresults = False
-                    print status_code, response
+                    print (status_code, response)
 
         return runninglist
