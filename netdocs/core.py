@@ -1,6 +1,10 @@
 from six.moves.urllib import parse
 import base64
 import requests
+from netdocs.errors import (
+    NDRefreshTokenError,
+    NDAccessTokenError
+)
 
 # Can have multiple scopes separated by spaces
 VALID_SCOPES = [
@@ -8,9 +12,6 @@ VALID_SCOPES = [
     'delete_container', 'full'
     ]
 
-# For authorization code flow
-# auth parameters are client_id, scope, response_type, and redirect_uri
-RESPONSE_TYPE = "code"
 
 AUTH_URL = 'https://vault.netvoyage.com/neWeb2/OAuth.aspx'
 REFRESH_URL = 'https://api.vault.netvoyage.com/v1/OAuth'
@@ -24,21 +25,24 @@ class NetDocs():
         # Load Settings
         self.client_id = client_id
         self.client_secret = client_secret
+        self.access_token = ""
+        self.refresh_token = ""
+        self.scope = ""
 
-    def configure_urls(self,
-        redirect_url="http://localhost"
-        auth_url=AUTH_URL,
-        refresh_url=REFRESH_URL,
-        base_url = BASE_URL
-        ):
+    def configure_urls(
+            self,
+            redirect_url="http://localhost",
+            auth_url=AUTH_URL,
+            refresh_url=REFRESH_URL,
+            base_url=BASE_URL
+    ):
         """ Initialise URLs """
         self.auth_url = auth_url
         self.redirect_url = redirect_url
         self.refresh_url = refresh_url
         self.base_url = base_url
 
-
-    def headers(self):
+    def auth_headers(self):
         """ Get headers for authentication. """
         b64string = base64.b64encode(
             ":".join([self.client_id, self.client_secret])
@@ -51,61 +55,100 @@ class NetDocs():
             "Content-Length": "29"
             }
 
+    def get_auth_url(self):
+        """ Build authentication URL. """
+        # Encode URL parameters...
+        params = parse.urlencode({
+            'client_id': self.client_id,
+            'scope': parse.quote(self.scope, safe=''),
+            'response_type': 'code'
+            })
+        # ...apart from redirect_uri (server doesn't like this encoded)
+        redirect_url = "=".join(['redirect_uri', self.redirect_url])
+        params = "&".join([params, redirect_url])
 
+        return "?".join([self.auth_url, params])
+
+    def get_refresh_token(self, authcode):
+        self.authcode = authcode
+
+        # Encode URL parameters
+        params = {
+            'grant_type': 'authorization_code',
+            'code': authcode,
+            'redirect_uri': self.redirect_url
+            }
+        # ...apart from redirect_uri (server doesn't like this encoded)
+        # redirect_url = "=".join(['redirect_uri', self.redirect_uri])
+        # params = "&".join([params, redirect_url])
+
+        r = requests.post(self.refresh_url, headers=self.headers(), data=params)
+
+        if r.status_code == 200:
+            params_dict = r.json()
+            self.access_token = params_dict.get('access_token')
+            self.refresh_token = params_dict.get('refresh_token')
+            return self.refresh_token
+        else:
+            print(r)
+            raise NDRefreshTokenError
+
+    def get_new_access_token(self):
+        # Encode URL parameters
+        params = {
+            'grant_type': 'refresh_token',
+            'refresh_token': self.refresh_token
+            }
+
+        r = requests.post(self.refresh_url, headers=self.headers(), data=params)
+
+        if r.status_code == 200:
+            params_dict = r.json()
+            self.access_token = params_dict['access_token']
+            return self.access_token
+        else:
+            print(r)
+            raise NDAccessTokenError
 
     def create_user_instance(self):
         """ Create a NetDocs instance for a user. """
         pass
 
-
-
-
-
-
-    def build_request(self, object_type, object_id=""):
+    def build_request(self, url_portion):
         headers = {
-            "Authorization": "Bearer %s" % self.access_token,
+            "Authorization": "Bearer {0}".format(self.access_token),
             "Accept": "application/json"
             }
 
-        url = "".join([self.base_url, object_type])
+        url = "".join([self.base_url, url_portion])
         return url, headers
 
-    def make_query(self, url_portion, params=None):
+    def make_query(
+        self,
+        url_portion,
+        params=None,
+        method='GET',
+        retry=False
+    ):
         """
         Function to make a (get) query and return json or statuscode / text
         """
         url, headers = self.build_request(url_portion)
-        r = requests.get(url, headers=headers, params=params)
-        if r.status_code == 401:
-            # Get new access token
-            self.get_new_access_token()
-            # Rebuild headers
-            url, headers = self.build_request(url_portion)
-            # Repeat request
-            r = requests.get(url, headers=headers, params=params)
-        if r.status_code == 200:
-            return r.status_code, r.json()
-        else:
-            return r.status_code, r.text
 
-    def post_query(self, url_portion, params):
-        """
-        Function to make a post request and return json or statuscode / text
-        """
-        url, headers = self.build_request(url_portion)
-        r = requests.post(url, headers=headers, params=params)
-        if r.status_code == 401:
-            # Get new access token
-            self.get_new_access_token()
-            # Rebuild headers
-            url, headers = self.build_request(url_portion)
-            # Repeat request
-            r = requests.post(url, headers=headers, params=params)
-        if r.status_code == 200:
-            return r.status_code, r.json()
+        if method == 'GET':
+            r = requests.get(url, headers=headers, params=params)
         else:
-            return r.status_code, r.text
+            r = requests.post(url, headers=headers, params=params)
+
+        if r.status_code == 200:
+            return r.json()
+
+        if r.status_code == 401:
+            if not retry:
+                self.get_new_access_token()
+                return self.make_query(url_portion, params, method, retry=True)
+        else:
+            return " - ".join([r.status_code, r.text])
 
     def get_user_data(self):
         object_type = "/v1/User/info"
