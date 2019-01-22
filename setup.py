@@ -10,6 +10,7 @@ with open('LICENSE') as f:
     license = f.read()
 
 setup(
+    install_requires['requests', 'flask'],
     name='netdocs',
     version='0.1',
     description='A wrapper for the NetDocuments API.',
@@ -20,6 +21,5 @@ setup(
     license=license,
     packages=find_packages(exclude=('tests', 'docs')),
     download_url = 'https://github.com/benhoyle/netdocs/tarball/0.1',
-    keywords = ['netdocuments', 'wrapper', 'api'],
-    install_requires['requests', 'flask']
+    keywords = ['netdocuments', 'wrapper', 'api']
 )
